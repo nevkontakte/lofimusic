@@ -1,35 +1,26 @@
-const cacheName = "app-" + "266ef15c60a7f8062301ac5a55546b825540d317";
+const cacheName = "app-" + "6d6e00caf90958cf06ce3696edaf0da1acde4795";
+const resourcesToCache = ["/","/app.css","/app.js","/driver-wasm.js","/manifest.webmanifest","/wasm_exec.js","/web/app.wasm","/web/lofimusic.css","/web/logo.png","https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500\u0026display=swap"];
 
-self.addEventListener("install", event => {
-  console.log("installing app worker 266ef15c60a7f8062301ac5a55546b825540d317");
+self.addEventListener("install", (event) => {
+  console.log("installing app worker 6d6e00caf90958cf06ce3696edaf0da1acde4795");
 
   event.waitUntil(
-    caches.open(cacheName).
-      then(cache => {
-        return cache.addAll([
-          "/",
-          "/app.css",
-          "/app.js",
-          "/manifest.webmanifest",
-          "/wasm_exec.js",
-          "/web/app.wasm",
-          "/web/lofimusic.css",
-          "/web/logo.png",
-          "https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500&display=swap",
-          
-        ]);
-      }).
-      then(() => {
+    caches
+      .open(cacheName)
+      .then((cache) => {
+        return cache.addAll(resourcesToCache);
+      })
+      .then(() => {
         self.skipWaiting();
       })
   );
 });
 
-self.addEventListener("activate", event => {
+self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then(keyList => {
+    caches.keys().then((keyList) => {
       return Promise.all(
-        keyList.map(key => {
+        keyList.map((key) => {
           if (key !== cacheName) {
             return caches.delete(key);
           }
@@ -37,13 +28,90 @@ self.addEventListener("activate", event => {
       );
     })
   );
-  console.log("app worker 266ef15c60a7f8062301ac5a55546b825540d317 is activated");
+  console.log("app worker 6d6e00caf90958cf06ce3696edaf0da1acde4795 is activated");
 });
 
-self.addEventListener("fetch", event => {
+self.addEventListener("fetch", (event) => {
   event.respondWith(
-    caches.match(event.request).then(response => {
+    caches.match(event.request).then((response) => {
       return response || fetch(event.request);
     })
+  );
+});
+
+self.addEventListener("push", (event) => {
+  if (!event.data || !event.data.text()) {
+    return;
+  }
+
+  const notification = JSON.parse(event.data.text());
+  if (!notification) {
+    return;
+  }
+
+  const title = notification.title;
+  delete notification.title;
+
+  if (!notification.data) {
+    notification.data = {};
+  }
+  let actions = [];
+  for (let i in notification.actions) {
+    const action = notification.actions[i];
+
+    actions.push({
+      action: action.action,
+      path: action.path,
+    });
+
+    delete action.path;
+  }
+  notification.data.goapp = {
+    path: notification.path,
+    actions: actions,
+  };
+  delete notification.path;
+
+  event.waitUntil(self.registration.showNotification(title, notification));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  const notification = event.notification;
+  let path = notification.data.goapp.path;
+
+  for (let i in notification.data.goapp.actions) {
+    const action = notification.data.goapp.actions[i];
+    if (action.action === event.action) {
+      path = action.path;
+      break;
+    }
+  }
+
+  event.waitUntil(
+    clients
+      .matchAll({
+        type: "window",
+      })
+      .then((clientList) => {
+        for (var i = 0; i < clientList.length; i++) {
+          let client = clientList[i];
+          if ("focus" in client) {
+            client.focus();
+            client.postMessage({
+              goapp: {
+                type: "notification",
+                path: path,
+              },
+            });
+            return;
+          }
+        }
+
+        if (clients.openWindow) {
+          return clients.openWindow(path);
+        }
+      })
   );
 });
