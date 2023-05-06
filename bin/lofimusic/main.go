@@ -30,6 +30,13 @@ type githubOptions struct {
 	Output string `cli:"o" env:"-" help:"The directory where static resources are saved."`
 }
 
+type gopherJSDriver struct{}
+
+func (d *gopherJSDriver) Scripts() []string                     { return nil }
+func (d *gopherJSDriver) Styles() []string                      { return nil }
+func (d *gopherJSDriver) CacheableResources() []string          { return nil }
+func (d *gopherJSDriver) PreRenderItems() []app.PreRenderedItem { return nil }
+
 func main() {
 	for _, l := range getLiveRadios() {
 		app.Route("/"+l.Slug, newRadio())
@@ -91,9 +98,11 @@ func main() {
 			"https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500&display=swap",
 			"/web/lofimusic.css",
 		},
+		Scripts: []string{"/web/app.js"},
 
 		ThemeColor: backgroundColor,
 		Title:      "Lofimusic",
+		Driver:     &gopherJSDriver{},
 	}
 
 	opts := options{Port: 4000}
